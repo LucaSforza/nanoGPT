@@ -1,58 +1,47 @@
 # nanoGPT — just command runner
-# Use: just <recipe> [args...]
+# Use: just <recipe> [args...] [-- extra-flags]
 # Requires: uv, just
 
 uv := "uv run python"
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
-# Install all dependencies
 install:
     uv sync
 
 # ── Data preparation ────────────────────────────────────────────────────────
 
-# Prepare Shakespeare character-level dataset
 prepare-shakespeare-char:
     {{uv}} data/shakespeare_char/prepare.py
 
-# Prepare Shakespeare BPE-tokenized dataset
 prepare-shakespeare:
     {{uv}} data/shakespeare/prepare.py
 
-# Prepare OpenWebText dataset
 prepare-openwebtext:
     {{uv}} data/openwebtext/prepare.py
 
 # ── Training ────────────────────────────────────────────────────────────────
 
-# Train Shakespeare char-level (default)
-train-shakespeare-char config="config/train_shakespeare_char.py":
-    {{uv}} train.py {{config}} {{arguments}}
+train-shakespeare-char config="config/train_shakespeare_char.py" *flags:
+    {{uv}} train.py {{config}} {{flags}}
 
-# Train Shakespeare char-level on CPU
-train-shakespeare-char-cpu:
-    {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False {{arguments}}
+train-shakespeare-char-cpu *flags:
+    {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False {{flags}}
 
-# Train Shakespeare char-level on Apple Silicon (MPS)
-train-shakespeare-char-mps:
-    {{uv}} train.py config/train_shakespeare_char.py --device=mps --compile=False {{arguments}}
+train-shakespeare-char-mps *flags:
+    {{uv}} train.py config/train_shakespeare_char.py --device=mps --compile=False {{flags}}
 
-# Train with an arbitrary config file
-train config="config/train_shakespeare_char.py":
-    {{uv}} train.py {{config}} {{arguments}}
+train config="config/train_shakespeare_char.py" *flags:
+    {{uv}} train.py {{config}} {{flags}}
 
-# Train GPT-2 (124M) with DDP (8 GPUs)
 train-gpt2:
     torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
 
-# Benchmark model performance
-bench:
-    {{uv}} bench.py {{arguments}}
+bench *flags:
+    {{uv}} bench.py {{flags}}
 
 # ── Evaluation ──────────────────────────────────────────────────────────────
 
-# Evaluate pretrained GPT-2 checkpoints (no training)
 eval-gpt2:
     {{uv}} train.py config/eval_gpt2.py
 
@@ -67,17 +56,14 @@ eval-gpt2-xl:
 
 # ── Sampling / Inference ────────────────────────────────────────────────────
 
-# Sample from a trained model (set out_dir)
-sample out_dir="out":
-    {{uv}} sample.py --out_dir={{out_dir}} {{arguments}}
+sample out_dir="out" *flags:
+    {{uv}} sample.py --out_dir={{out_dir}} {{flags}}
 
-# Sample from pretrained GPT-2
-sample-pretrained init_from="gpt2-xl":
-    {{uv}} sample.py --init_from={{init_from}} --num_samples=5 --max_new_tokens=100 {{arguments}}
+sample-pretrained init_from="gpt2-xl" *flags:
+    {{uv}} sample.py --init_from={{init_from}} --num_samples=5 --max_new_tokens=100 {{flags}}
 
 # ── Quickstart (all-in-one) ──────────────────────────────────────────────────
 
-# Full pipeline: prepare → train → sample (Shakespeare char, CPU-friendly)
 demo:
     {{uv}} data/shakespeare_char/prepare.py
     {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0
@@ -85,6 +71,5 @@ demo:
 
 # ── Help ─────────────────────────────────────────────────────────────────────
 
-# List all available recipes
 default:
     @just --list
