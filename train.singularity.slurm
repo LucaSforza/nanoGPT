@@ -9,19 +9,27 @@
 
 set -euo pipefail
 
+# --- Config ---
 SIF=~/nanoGPT.sif
 IMAGE=docker://lucasforza/nanogpt:latest
 REPO=~/nanoGPT
+WANDB=1   # set to 0 to disable wandb logging
 
-# Build Singularity image from Docker Hub (only if not exists)
+# --- Build Singularity image (cached) ---
 if [ ! -f "$SIF" ]; then
     singularity build "$SIF" "$IMAGE"
 fi
 
 cd "$REPO"
 
+WANDB_FLAG=""
+if [ "$WANDB" = 1 ]; then
+    WANDB_FLAG="--wandb_log=True"
+fi
+
 # Prepare data
 singularity exec --nv "$SIF" python data/shakespeare_char/prepare.py
 
 # Train
-singularity exec --nv "$SIF" python train.py config/train_shakespeare_char.py
+singularity exec --nv --home "$HOME" "$SIF" \
+    python train.py config/train_shakespeare_char.py $WANDB_FLAG
