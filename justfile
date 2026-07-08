@@ -28,19 +28,19 @@ prepare-openwebtext:
 
 # Train Shakespeare char-level (default)
 train-shakespeare-char config="config/train_shakespeare_char.py":
-    {{uv}} train.py {{config}}
+    {{uv}} train.py {{config}} {{arguments}}
 
 # Train Shakespeare char-level on CPU
 train-shakespeare-char-cpu:
-    {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False
+    {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False {{arguments}}
 
 # Train Shakespeare char-level on Apple Silicon (MPS)
 train-shakespeare-char-mps:
-    {{uv}} train.py config/train_shakespeare_char.py --device=mps --compile=False
+    {{uv}} train.py config/train_shakespeare_char.py --device=mps --compile=False {{arguments}}
 
 # Train with an arbitrary config file
 train config="config/train_shakespeare_char.py":
-    {{uv}} train.py {{config}}
+    {{uv}} train.py {{config}} {{arguments}}
 
 # Train GPT-2 (124M) with DDP (8 GPUs)
 train-gpt2:
@@ -48,7 +48,7 @@ train-gpt2:
 
 # Benchmark model performance
 bench:
-    {{uv}} bench.py
+    {{uv}} bench.py {{arguments}}
 
 # ── Evaluation ──────────────────────────────────────────────────────────────
 
@@ -69,11 +69,11 @@ eval-gpt2-xl:
 
 # Sample from a trained model (set out_dir)
 sample out_dir="out":
-    {{uv}} sample.py --out_dir={{out_dir}}
+    {{uv}} sample.py --out_dir={{out_dir}} {{arguments}}
 
 # Sample from pretrained GPT-2
 sample-pretrained init_from="gpt2-xl":
-    {{uv}} sample.py --init_from={{init_from}} --num_samples=5 --max_new_tokens=100
+    {{uv}} sample.py --init_from={{init_from}} --num_samples=5 --max_new_tokens=100 {{arguments}}
 
 # ── Quickstart (all-in-one) ──────────────────────────────────────────────────
 
