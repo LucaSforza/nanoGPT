@@ -11,7 +11,7 @@ set -euo pipefail
 
 # --- Config ---
 SIF=~/nanoGPT.sif
-IMAGE=docker://lucasforza/nanogpt:latest
+IMAGE=docker://softdream1/nanogpt:latest
 REPO=~/nanoGPT
 WANDB=1   # set to 0 to disable wandb logging
 

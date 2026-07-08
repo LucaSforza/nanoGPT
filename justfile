@@ -77,7 +77,7 @@ demo:
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 
-tag := "lucasforza/nanogpt:latest"
+tag := "softdream1/nanogpt:latest"
 
 # Build Docker image
 build:
