@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # --- Config ---
-SIF=~/nanoGPT.sif
+SIF=./nanogpt.sif
 IMAGE=docker://softdream1/nanogpt:latest
 REPO=~/nanoGPT
 WANDB=1   # set to 0 to disable wandb logging
@@ -30,6 +30,6 @@ fi
 # Prepare data
 singularity exec --nv "$SIF" python data/shakespeare_char/prepare.py
 
-# Train
+# Train (--compile=False because container lacks gcc for Triton)
 singularity exec --nv --home "$HOME" "$SIF" \
-    python train.py config/train_shakespeare_char.py $WANDB_FLAG
+    python train.py config/train_shakespeare_char.py --compile=False $WANDB_FLAG
