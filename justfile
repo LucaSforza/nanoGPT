@@ -90,9 +90,6 @@ push:
 # Build + Push in one step
 deploy: build push
 
-default:
-    @just --list
-
 # ── Singularity (cluster) ────────────────────────────────────────────────────
 
 sif:
@@ -103,3 +100,9 @@ sbatch-singularity:
 
 sbatch-uv:
     sbatch train.slurm
+
+# Docker build → push → SIF → sbatch (full pipeline)
+deploy-sbatch: deploy sif sbatch-singularity
+
+default:
+    @just --list
