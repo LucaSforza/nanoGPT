@@ -47,7 +47,7 @@ fi
 singularity exec --nv "$SIF" python data/shakespeare_char/prepare.py
 
 # Train with auto-save and fast eval
-singularity exec --nv --home "$HOME" "$SIF" \
+singularity exec --nv --home "$HOME" --env PYTHONUNBUFFERED=1 "$SIF" \
     python train.py config/train_shakespeare_char.py \
         --compile=False --eval_iters=20 --always_save_checkpoint=True \
         $INIT $WANDB_FLAG
