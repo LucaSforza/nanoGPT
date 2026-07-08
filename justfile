@@ -92,3 +92,14 @@ deploy: build push
 
 default:
     @just --list
+
+# ── Singularity (cluster) ────────────────────────────────────────────────────
+
+sif:
+    singularity build nanogpt.sif docker://{{tag}}
+
+sbatch-singularity:
+    sbatch train.singularity.slurm
+
+sbatch-uv:
+    sbatch train.slurm
