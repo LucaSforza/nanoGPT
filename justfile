@@ -28,6 +28,10 @@ train-shakespeare-char config="config/train_shakespeare_char.py" *flags:
 train-shakespeare-char-cpu *flags:
     {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False {{flags}}
 
+# Train on Framework 13 (AMD CPU, no GPU) with CPU-friendly settings
+train-framework-13 *flags:
+    {{uv}} train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=10 {{flags}}
+
 train-shakespeare-char-mps *flags:
     {{uv}} train.py config/train_shakespeare_char.py --device=mps --compile=False {{flags}}
 
@@ -70,6 +74,21 @@ demo:
     {{uv}} sample.py --out_dir=out-shakespeare-char --device=cpu
 
 # ── Help ─────────────────────────────────────────────────────────────────────
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+
+tag := "lucasforza/nanogpt:latest"
+
+# Build Docker image
+build:
+    docker build -t {{tag}} .
+
+# Push Docker image to Docker Hub
+push:
+    docker push {{tag}}
+
+# Build + Push in one step
+deploy: build push
 
 default:
     @just --list
