@@ -32,4 +32,4 @@ singularity exec --nv "$SIF" python data/shakespeare_char/prepare.py
 
 # Train (--compile=False because container lacks gcc for Triton)
 singularity exec --nv --home "$HOME" "$SIF" \
-    python train.py config/train_shakespeare_char.py --compile=False $WANDB_FLAG
+    python train.py config/train_shakespeare_char.py --compile=False --eval_iters=20 $WANDB_FLAG
