@@ -1,0 +1,14 @@
+.venv
+__pycache__
+*.pyc
+.git
+.gitattributes
+.gitignore
+*.bin
+*.pkl
+*.pt
+out*/
+venv
+env
+assets
+*.ipynb
