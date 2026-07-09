@@ -104,5 +104,10 @@ sbatch-uv:
 # Docker build → push → SIF → sbatch (full pipeline)
 deploy-sbatch: deploy sif sbatch-singularity
 
+# Sample from trained model (via Singularity on cluster)
+sample-singularity out_dir="out-shakespeare-char" *flags:
+    singularity exec --nv --home "$HOME" --env PYTHONUNBUFFERED=1 nanogpt.sif \
+        python sample.py --out_dir={{out_dir}} {{flags}}
+
 default:
     @just --list
