@@ -1,8 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=students
 #SBATCH --gres=gpu:1
-#SBATCH --time=2:00
-#SBATCH --signal=USR1@60
+#SBATCH --signal=USR1@120
 #SBATCH --job-name=nanoGPT
 #SBATCH --output=nanoGPT-%j.out
 #SBATCH --error=nanoGPT-%j.err
