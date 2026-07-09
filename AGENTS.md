@@ -1,78 +1,107 @@
 # nanoGPT
 
-Deprecated in favor of [nanochat](https://github.com/karpathy/nanochat). Existing code still works but no active development.
+Fork: `github.com/LucaSforza/nanoGPT.git`. Deprecated upstream in favor of nanochat, but actively used via fork.
 
-## Key files
-
-- `train.py` — training loop with all config as module-level globals (~340 lines)
-- `model.py` — `GPT` + `GPTConfig` dataclass, supports Flash Attention / manual attn (~330 lines)
-- `sample.py` — inference from checkpoint or pretrained GPT-2
-- `configurator.py` — exec-based config override: `python train.py config/foo.py --batch_size=32`
-- `bench.py` — stripped-down train loop for benchmarking only
-
-## Config system
-
-Config is NOT YAML/JSON. Each `config/*.py` is a plain Python file whose module-level vars override defaults in `train.py` or `sample.py` via `exec()` + `globals()`.
-
-Order of precedence: defaults in script < config file < `--key=value` CLI args.
-
-CLI overrides check type match (`assert type(attempt) == type(globals()[key])`). Unknown keys raise `ValueError`.
-
-## Common commands
+## Workflow (cluster)
 
 ```sh
-# Prepare data (must run before training)
-python data/shakespeare_char/prepare.py
+# SSH to cluster, then:
+ssh cluster2
+cd ~/nanoGPT && git pull
 
-# Train (single GPU)
-python train.py config/train_shakespeare_char.py
+# Full pipeline (Docker build → push → SIF → Slurm training)
+just deploy-sbatch
 
-# CPU fallback
-python train.py config/train_shakespeare_char.py --device=cpu --compile=False
+# Or step by step:
+just build          # docker build -t softdream1/nanogpt:latest
+just push           # docker push softdream1/nanogpt:latest
+just sif            # singularity build nanogpt.sif docker://softdream1/nanogpt:latest
+just sbatch-singularity  # sbatch train.singularity.slurm
 
-# Apple Silicon
-python train.py config/train_shakespeare_char.py --device=mps
+# Sample from trained model (GPU node, via Slurm)
+just sample-singularity
 
-# DDP multi-GPU
-torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
-
-# Multi-node (add NCCL_IB_DISABLE=1 if no Infiniband)
-torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=IP --master_port=1234 train.py
-
-# Sample from trained model
-python sample.py --out_dir=out-shakespeare-char
-
-# Sample from pretrained GPT-2
-python sample.py --init_from=gpt2-xl --start="..." --num_samples=5 --max_new_tokens=100
-
-# Evaluate pretrained checkpoints (no training)
-python train.py config/eval_gpt2.py
+# Check results
+cat sample-*.out
 ```
 
-## Data format
+## Key files in this repo
 
-Expects `data/{dataset}/` with `train.bin` + `val.bin` (uint16 token IDs) and optional `meta.pkl` (with `vocab_size`). Prepare scripts are under `data/{dataset}/prepare.py`.
+- `train.py` — training loop, config as module-level globals
+- `model.py` — `GPT` + `GPTConfig` dataclass
+- `sample.py` — inference from checkpoint or pretrained GPT-2
+- `justfile` — all commands (Docker, Singularity, Slurm, training, sampling)
+- `Dockerfile` — PyTorch 2.6 + CUDA 12.4 container
+- `train.singularity.slurm` — Slurm batch with auto-requeue
+- `sample.slurm` — Slurm batch for inference
+- `config/*.py` — exec-based config overrides (NOT YAML/JSON)
+
+## Just recipes (cluster)
+
+| Recipe | What it does |
+|--------|-------------|
+| `just build` | `docker build -t softdream1/nanogpt:latest` |
+| `just push` | `docker push softdream1/nanogpt:latest` |
+| `just sif` | Build `nanogpt.sif` from Docker Hub |
+| `just deploy` | build + push |
+| `just deploy-sbatch` | build → push → sif → sbatch (full pipeline) |
+| `just sbatch-singularity` | `sbatch train.singularity.slurm` |
+| `just sample-singularity` | `sbatch sample.slurm` |
+| `just train-framework-13` | CPU training on local laptop |
+| `just demo` | Full shakespeare-char quickstart (CPU) |
+
+## Cluster environment
+
+- **Host**: `cluster2` (SSH)
+- **Partition**: `students` (default, ~30 nodes with Quadro RTX 6000 24GB)
+- **Time limit**: 30 min (partition default)
+- **Software**: `singularity-ce 3.9.8`, `docker`, `uv` in `~/.local/bin`, `just` in `~/.local/bin`
+- **Repo**: `/home/sforza_2050030/nanoGPT`
+- **Docker Hub**: `softdream1/nanogpt:latest`
+
+## Training details
+
+- **Shakespeare char-level**: 10.65M params, 5000 iters, ~2 min on RTX 6000
+- **Loss reference**: 1.4697 (config default), 1.45-1.50 typical
+- **`--compile=False`** required in container (no gcc for Triton kernels)
+- **`--always_save_checkpoint=True`** saves at every eval for resume
+- **`--eval_iters=20`** (reduced from 200) for faster evaluation
+
+## Checkpoint system (custom)
+
+- `best.pt` — saved only when val loss improves (use for sampling)
+- `ckpt.pt` — saved every eval when `--always_save_checkpoint=True` (use for resume)
+- When loss improves, both files are saved with the same weights
+
+`sample.py` prefers `best.pt` over `ckpt.pt` automatically.
+
+## Auto-requeue mechanism
+
+`train.singularity.slurm`:
+- `#SBATCH --signal=USR1@120` → Slurm sends USR1 2 min before timeout
+- Trap handler calls `scontrol requeue $SLURM_JOB_ID`
+- Next instance detects `ckpt.pt` and resumes via `--init_from=resume`
+- Loop continues until training completes (5000 iters)
+
+## Wandb
+
+- Credentials in `~/.netrc` on cluster
+- Singularity passes them via `--home "$HOME"`
+- Enable with `WANDB=1` in Slurm script (default: on)
+
+## Quirks
+
+- Python buffers stdout in Slurm → use `--env PYTHONUNBUFFERED=1` in Singularity
+- `torch.cuda.amp.GradScaler` warning is harmless (auto-disables without CUDA)
+- `singularity build docker://` → auth error if image not pushed first
+- `singularity build docker-daemon://` → fails if Docker API version mismatch (use `docker save | singularity build docker-archive://-` instead)
 
 ## Dependencies
 
-`pip install torch numpy transformers datasets tiktoken wandb tqdm`
+`just install` → `uv sync` installs from `pyproject.toml` (torch, numpy, tiktoken, wandb, transformers, datasets)
 
-`torch.compile` (PyTorch 2.0) is on by default — disable with `--compile=False` if unavailable.
+## Config system
 
-## Type behavior
-
-`dtype` auto-selects `bfloat16` if available, else `float16`. Float16 auto-enables `GradScaler`. Use `--dtype=float32` to disable mixed precision.
-
-## Init modes
-
-- `init_from='scratch'` — fresh model, `vocab_size` defaults to 50304 (GPT-2 vocab rounded up)
-- `init_from='resume'` — loads `{out_dir}/ckpt.pt` (strips `_orig_mod.` prefix from compiled state_dict keys)
-- `init_from='gpt2*'` — loads OpenAI weights via `model.py` `from_pretrained()`
-
-## Checkpoints
-
-Saved as `{out_dir}/ckpt.pt` with keys: `model`, `optimizer`, `model_args`, `iter_num`, `best_val_loss`, `config`. Saving only on val loss improvement unless `always_save_checkpoint=True`.
-
-## No tests
-
-No test framework, no CI. No lint/format/typecheck config. Verify via `train.py` or `bench.py`.
+1. Defaults in script
+2. Config file overrides (via `exec()`)
+3. CLI `--key=value` overrides (type-checked: `assert type(attempt) == type(globals()[key])`)
